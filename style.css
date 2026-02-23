@@ -1,31 +1,396 @@
-/*
- * =====================================================
- * 🦊 PokéCSS - Feuille de styles
- * =====================================================
- *
- * C'EST ICI QUE TU TRAVAILLES !
- *
- * Objectif : Utilise CSS Flexbox pour mettre en page
- * l'application Pokémon.
- *
- * Conseils :
- * - Cherche les classes qui contiennent "-flex" dans leur nom
- *   Ce sont des conteneurs qui pourraient utiliser display: flex
- *
- * - Classes importantes :
- *   .header-flex        -> En-tête de la page
- *   .main-flex          -> Conteneur principal
- *   .search-flex        -> Section de recherche
- *   .search-form-flex   -> Formulaire de recherche
- *   .search-input-flex  -> Groupe input + bouton
- *   .cards-flex         -> Conteneur des cartes Pokémon
- *   .card-flex          -> Une carte Pokémon
- *   .card-image-flex    -> Conteneur de l'image
- *   .card-info-flex     -> Infos principales (nom, id, génération)
- *   .card-types-flex    -> Conteneur des badges de type
- *   .card-stats-flex    -> Conteneur des statistiques
- *   .stat-row-flex      -> Une ligne de statistique (label + valeur)
- *
- * Bon courage ! 🎨
- * =====================================================
- */
+/* ==== Base ==== */
+
+body {
+  margin: 0;
+  font-family: "Montserrat", sans-serif;
+  background-image: url("images/background.png");
+  background-size: cover;
+  background-position: sticky;
+  transition: background-color 0.8s;
+  background-attachment: fixed;
+}
+h1 {
+  margin: 0;
+  font-family: "Pixelify Sans", sans-serif;
+  color: #ffffff;
+  font-weight: 400;
+  font-size: 3.5rem;
+  text-align: center;
+}
+h2 {
+  font-family: "Pixelify Sans", sans-serif;
+  font-size: 45px;
+  text-align: center;
+  margin-bottom: 20px;
+}
+article {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==== Header ==== */
+
+header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #9cbdc6;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  height: 120px;
+  transition:
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.3s ease;
+  will-change: transform;
+}
+header.header-scrolled {
+  padding: 20px 0;
+  transform: scaleY(0.6);
+  transform-origin: top;
+}
+.header-logo {
+  align-self: center;
+  max-width: 200px;
+  margin-left: 30px;
+  margin-right: 300px;
+  will-change: max-width;
+  transition: max-width 0.3s ease;
+}
+header.header-scrolled .header-logo,
+header.header-scrolled h1 {
+  transform: scaleY(1.66);
+  transition: transform 0.3s ease;
+}
+
+/* ==== Recherche ==== */
+
+.search-section {
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: sticky;
+  top: 150px;
+  z-index: 100;
+}
+.search-form {
+  width: 100%;
+  max-width: 500px;
+}
+.search-input-group {
+  position: relative;
+  display: flex;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  border-radius: 50px;
+  overflow: hidden;
+  background: white;
+  border: 1px solid #ddd;
+  transition: all 0.3s ease;
+}
+.search-input-group:focus-within {
+  border-color: #9cbdc6;
+  box-shadow: 0 4px 15px rgba(0, 245, 255, 0.15);
+}
+.search-input {
+  flex: 1;
+  padding: 15px 25px;
+  border: none;
+  outline: none;
+  font-family: "Roboto", sans-serif;
+  font-size: 1rem;
+  color: #333;
+}
+.search-input::placeholder {
+  color: #aaa;
+  font-style: italic;
+}
+
+/* ==== Historique ==== */
+
+.search-history-flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 15px;
+  max-width: 500px;
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s ease,
+    visibility 0.4s;
+}
+.history-badge {
+  background-color: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  padding: 5px 15px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: "Montserrat", sans-serif;
+  box-shadow: 0 4px 15px rgba(0, 245, 255, 0.22);
+}
+.history-badge:hover {
+  background-color: #9ccfc6;
+  color: white;
+  border-color: #9cbdc6;
+  transform: translateY(-2px);
+}
+.search-history-flex.is-hidden,
+.clear-history-btn.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-10px);
+}
+.error-message {
+  margin-top: 15px;
+  color: #d9534f;
+  background: #fdf7f7;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  border: 1px solid #eed3d7;
+}
+
+/* ==== Card (infos) ==== */
+
+.card-image-description {
+  display: flex;
+  gap: 1rem;
+}
+.card-image {
+  display: inline;
+  margin-left: 300px;
+  object-fit: contain;
+  overflow: hidden;
+  margin-bottom: -10px;
+  filter: drop-shadow(0 4px 8px var(--main-color));
+}
+.infos {
+  position: relative;
+  display: flex;
+  margin-top: 100px;
+  align-items: center;
+  justify-content: center;
+}
+.infos-principales {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 100px;
+  justify-content: center;
+}
+.card-name {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 300px;
+  text-align: start;
+}
+
+/* ==== statistiques ==== */
+
+.type-badge {
+  border: 1px solid #9cbdc6;
+  border-radius: 12px;
+  padding: 5px 20px;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 15px rgba(0, 245, 255, 0.15);
+}
+.card-stats-flex {
+  margin-left: 75px;
+  margin-top: -80px;
+  width: 300px;
+  border: 1px solid #eee;
+  padding: 25px;
+  border-top: 2px solid #9cbdc6;
+  border-bottom: 2px solid #9cbdc6;
+  max-width: 300px;
+  align-self: center;
+}
+.stat-row-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(87, 80, 80, 0.133);
+}
+.type-badge,
+.card-stats-flex,
+.card-name,
+.Carte-du-pokémon {
+  transition: all 0.5s ease-in-out;
+}
+.card-image-carte-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 50px 20px;
+}
+.card-image-carte {
+  max-width: 300px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 245, 255, 0.15);
+  overflow: hidden;
+  margin-bottom: -10px;
+}
+
+/* ==== Carte du Pokémon ====*/
+
+.Pokemon-carte-text {
+  align-self: center;
+  text-align: center;
+  line-height: 50px;
+}
+hover-tilt::part(container),
+.card-flex {
+  border-radius: 24px;
+}
+
+/* ==== Pokémon aléatoire ==== */
+
+.Discover-pokemon-text {
+  margin-bottom: 75px;
+}
+.Discover-pokemon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 50px 20px;
+}
+.random-grid {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-top: 30px;
+  flex-wrap: wrap;
+}
+.random-pkmn-thumb {
+  width: 120px;
+  height: 120px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+  object-fit: contain;
+}
+.random-pkmn-thumb:hover {
+  transform: scale(1.2);
+}
+.random-btn {
+  font-family: "Pixelify Sans", sans-serif;
+  background-color: #333;
+  color: white;
+  border: 2px solid transparent;
+  padding: 0 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border-radius: 8px;
+  margin-left: 10px;
+}
+.random-btn:hover {
+  background-color: #555;
+  transform: translateY(-2px);
+}
+
+/* ==== Separateurs ==== */
+
+.trait2,
+.trait3 {
+  margin: 50px auto 20px auto;
+  width: 90%;
+  max-width: 1200px;
+  height: 1px;
+  border: 1px solid #9cbdc6;
+}
+
+/* ==== variants ==== */
+
+#cards-container {
+  position: relative;
+  min-height: 200px;
+}
+.choix-variantes {
+  display: block;
+  z-index: 20;
+  gap: 10px;
+  margin-bottom: 70px;
+}
+.variantes-cards {
+  padding: 8px 15px;
+  border-radius: 20px;
+  border: 1px solid #9cbdc6;
+  font-family: "Montserrat", sans-serif;
+  background: white;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+#search-form[style*="pointer-events: none"] {
+  cursor: wait;
+  opacity: 0.6;
+}
+select:disabled {
+  background-color: #eee;
+}
+
+/* ==== Favoris ==== */
+
+#top-pokemon-container {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 20px;
+}
+.top-pkmn-item {
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+.top-pkmn-item:hover {
+  transform: scale(1.1);
+}
+.top-pkmn-thumb {
+  width: 150px;
+  height: 150px;
+  border: 2px solid transparent;
+  padding: 5px;
+  transition: all 0.01s ease;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+  object-fit: contain;
+}
+.search-count-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #ff4500;
+  color: white;
+  font-size: 10px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 10px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+.favoris-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.pokemon-favoris-text {
+  margin-bottom: 75px;
+}
+.type-effectiveness-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 15px;
+  justify-content: center;
+}
+.type-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}

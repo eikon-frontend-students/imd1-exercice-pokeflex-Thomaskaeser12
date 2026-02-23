@@ -1,403 +1,399 @@
-/**
- * PokéCSS - Application JavaScript
- * ================================
- * NE MODIFIE PAS CE FICHIER !
- * Ton travail = éditer uniquement style.css
- *
- * Ce fichier gère :
- * - La recherche de Pokémon via l'API
- * - L'affichage des cartes Pokémon
- * - Les messages d'erreur
- */
-
+// IIFE: on place tout le code dans une fonction qui s'exécute immédiatement (évite les variables globales)
 (function () {
-  "use strict";
+  // début de la fonction exécutée tout de suite
+  "use strict"; // active le mode strict pour attraper des erreurs simples
 
-  // =====================================================
-  // CONFIGURATION
-  // =====================================================
-  // Pokémon affiché par défaut au chargement de la page.
-  // Change ce nom si tu veux un autre Pokémon de départ.
-  // Mets null ou '' pour ne pas charger de Pokémon par défaut.
-  const DEFAULT_POKEMON = "Gruikui";
-  // =====================================================
+  // --- CONFIGURATION ---
+  const DEFAULT_POKEMON = "Lokhlass"; // Pokémon affiché par défaut
+  const API_POKEBUILD = "https://pokebuildapi.fr/api/v1/pokemon/"; // base API Pokebuild
+  const API_TCGDEX = "https://api.tcgdex.net/v2/fr"; // base API TCGDex
+  const HISTORY_KEY = "poke_history_v2"; // clé localStorage pour l'historique
+  const STATS_KEY = "poke_stats_v2"; // clé localStorage pour les stats
+  const MAX_CANDIDATES = 50; // limite de cartes TCG à inspecter
 
-  // URL de base de l'API Pokémon
-  const API_BASE_URL = "https://pokebuildapi.fr/api/v1/pokemon/";
+  let currentPokemon = DEFAULT_POKEMON; // nom du pokémon courant
 
-  // Clé de préfixe pour le cache localStorage
-  const CACHE_PREFIX = "pokeflex_";
+  // objet qui contiendra les références aux éléments HTML (pratique pour l'accès)
+  const ui = {
+    searchForm: null, // formulaire de recherche
+    pokemonInput: null, // input texte
+    rarityFilter: null, // select rareté
+    errorMessage: null, // zone d'affichage d'erreurs
+    cardsContainer: null, // conteneur où insérer la carte
+    cardTemplate: null, // template HTML (<template>) à cloner
+    clearHistoryBtn: null, // bouton clear
+    randomContainer: null, // conteneur miniatures aléatoires
+    randomSearchBtn: null, // bouton recherche aléatoire
+    topContainer: null, // conteneur top 5
+    historyContainer: null, // conteneur historique
+  };
 
-  // Éléments du DOM (récupérés au chargement)
-  let searchForm;
-  let pokemonInput;
-  let errorMessage;
-  let cardsContainer;
-  let cardTemplate;
-
-  /**
-   * Initialisation au chargement du DOM
-   */
-  document.addEventListener("DOMContentLoaded", function () {
-    // Récupération des éléments du DOM
-    searchForm = document.getElementById("search-form");
-    pokemonInput = document.getElementById("pokemon-input");
-    errorMessage = document.getElementById("error-message");
-    cardsContainer = document.getElementById("cards-container");
-    cardTemplate = document.getElementById("pokemon-card-template");
-
-    // Vérification que tous les éléments existent
-    if (
-      !searchForm ||
-      !pokemonInput ||
-      !errorMessage ||
-      !cardsContainer ||
-      !cardTemplate
-    ) {
-      console.error(
-        "PokéCSS: Éléments HTML manquants. Vérifie que tu n'as pas modifié les IDs.",
-      );
-      return;
-    }
-
-    // Écoute de la soumission du formulaire
-    searchForm.addEventListener("submit", handleSearch);
-
-    // Charge le Pokémon par défaut si configuré
-    if (DEFAULT_POKEMON && DEFAULT_POKEMON.trim()) {
-      loadDefaultPokemon(DEFAULT_POKEMON.trim());
-    }
+  // attend que le DOM soit prêt pour initialiser
+  document.addEventListener("DOMContentLoaded", () => {
+    initElements(); // lie les éléments DOM dans ui
+    initEvents(); // attache les écouteurs
+    renderHistory(); // affiche l'historique stocké
+    renderTopFive(); // affiche le top 5 des vues
+    executeSearch(DEFAULT_POKEMON); // lance la recherche par défaut
+    // Note: loadRandomSuggestions est maintenant géré par executeSearch
   });
 
-  /**
-   * Charge le Pokémon par défaut au démarrage
-   * @param {string} name - Le nom du Pokémon à charger
-   */
-  async function loadDefaultPokemon(name) {
+  // récupère toutes les références DOM utiles et les stocke dans ui
+  function initElements() {
+    ui.searchForm = document.getElementById("search-form");
+    ui.pokemonInput = document.getElementById("pokemon-input");
+    ui.rarityFilter = document.getElementById("rarity-filter");
+    ui.aspectFilter = document.getElementById("aspect-filter");
+    ui.errorMessage = document.getElementById("error-message");
+    ui.cardsContainer = document.getElementById("cards-container");
+    ui.cardTemplate = document.getElementById("pokemon-card-template");
+    ui.clearHistoryBtn = document.getElementById("clear-history");
+    ui.randomContainer = document.getElementById("random-pokemon-container");
+    ui.topContainer = document.getElementById("top-pokemon-container");
+    ui.randomSearchBtn = document.getElementById("random-search-btn");
+    ui.historyContainer = document.getElementById("search-history");
+  }
+
+  // attache les événements (submit, change, scroll, click)
+  function initEvents() {
+    window.addEventListener("scroll", handleHeaderScroll); // gère l'affichage du header lors du scroll
+
+    // écoute la soumission du formulaire (submit)
+    ui.searchForm?.addEventListener("submit", (e) => {
+      e.preventDefault(); // empêche le rechargement automatique de la page
+      const val = ui.pokemonInput.value.trim(); // lit et nettoie la valeur entrée
+      if (val) executeSearch(val); // lance la recherche si non vide
+    });
+
+    // quand les filtres changent, relance la recherche du pokémon courant
+    [ui.rarityFilter, ui.aspectFilter].forEach((f) => {
+      f?.addEventListener("change", () => {
+        if (currentPokemon) executeSearch(currentPokemon);
+      });
+    });
+
+    // bouton pour effacer l'historique et les stats locales
+    if (ui.clearHistoryBtn) {
+      ui.clearHistoryBtn.onclick = () => {
+        localStorage.removeItem(HISTORY_KEY); // supprime l'historique
+        localStorage.removeItem(STATS_KEY); // supprime les stats
+        renderHistory(); // met à jour l'affichage
+        renderTopFive(); // met à jour le top
+      };
+    }
+  }
+
+  // --- LOGIQUE CORE --- (récupération données, affichage, etc.)
+
+  // exécute une recherche et affiche le résultat
+  async function executeSearch(query) {
+    toggleLoading(true); // montre l'état chargement
     try {
-      const pokemon = await fetchPokemon(name);
-      createPokemonCard(pokemon);
+      const statsData = await fetch(
+        `${API_POKEBUILD}${encodeURIComponent(query)}?t=${Date.now()}`,
+      ).then((res) => {
+        if (!res.ok) throw new Error("Pokémon introuvable."); // si réponse non OK
+        return res.json(); // convertit la réponse en JSON
+      });
+
+      currentPokemon = statsData.name; // met à jour le nom courant
+      // normalise les valeurs des filtres en minuscules pour comparaisons fiables
+      const rFilter = (ui.rarityFilter?.value || "all").toLowerCase(); // lit le filtre rareté
+      const aFilter = (ui.aspectFilter?.value || "standard").toLowerCase(); // lit le filtre aspect
+
+      const tcgCard = await fetchBestTcgCard(currentPokemon, rFilter, aFilter); // cherche une carte TCG adaptée
+      createFinalCard(statsData, tcgCard); // construit la carte affichée
+      updateHistoryAndStats(statsData); // met à jour historique et stats
+
+      // rafraîchit les suggestions aléatoires à chaque recherche réussie
+      loadRandomSuggestions();
+
+      ui.pokemonInput.value = ""; // vide le champ de recherche
+      hideError(); // cache un éventuel message d'erreur
     } catch (error) {
-      // En cas d'erreur au chargement initial, on affiche l'erreur
-      // mais ça ne bloque pas l'utilisation de l'app
-      console.warn(
-        "PokéCSS: Impossible de charger le Pokémon par défaut:",
-        error.message,
+      showError(error.message); // affiche l'erreur à l'utilisateur
+    } finally {
+      toggleLoading(false); // désactive l'état chargement
+    }
+  }
+
+  // récupère une liste de cartes TCG et choisit la meilleure selon un score
+  async function fetchBestTcgCard(name, rFilter, aFilter) {
+    try {
+      const list = await fetch(
+        `${API_TCGDEX}/cards?name=${encodeURIComponent(name)}`,
+      ).then((res) => res.json()); // requête légère
+      if (!Array.isArray(list) || list.length === 0) return null; // pas de résultat
+
+      const sliceSize = Math.min(list.length, MAX_CANDIDATES); // limite le nombre inspecté
+      const candidates = await Promise.all(
+        list
+          .slice(-sliceSize) // prend les cartes les plus récentes
+          .map(
+            (c) =>
+              fetch(`${API_TCGDEX}/cards/${c.id}`).then((res) => res.json()), // récupère les détails
+          ),
       );
+
+      return candidates.sort(
+        (a, b) =>
+          scoreCard(b, name, rFilter, aFilter) -
+          scoreCard(a, name, rFilter, aFilter),
+      )[0]; // renvoie la carte avec le meilleur score
+    } catch (e) {
+      return null; // en cas d'erreur réseau
     }
   }
 
-  /**
-   * Gère la soumission du formulaire de recherche
-   * @param {Event} event - L'événement submit
-   */
-  async function handleSearch(event) {
-    // Empêche le rechargement de la page
-    event.preventDefault();
+  // calcule un score pour une carte (plus le score est élevé, mieux c'est)
+  function scoreCard(card, query, rFilter, aFilter) {
+    let score = 0; // valeur initiale
+    const name = (card.name || "").toLowerCase(); // nom en minuscules
+    const rarity = (card.rarity || "").toLowerCase(); // rareté en minuscules
+    const stage = (card.stage || "").toLowerCase(); // stage en minuscules
+    const subtype = (card.subtype || "").toLowerCase(); // sous-type (ex: VMAX, V)
+    const supertype = (card.supertype || "").toLowerCase(); // supertype si présent
+    const search = query.toLowerCase(); // terme recherché en minuscules
 
-    // Récupère et nettoie la valeur de l'input
-    const searchValue = pokemonInput.value.trim();
+    if (name === search)
+      score += 10000; // correspondance exacte -> gros bonus
+    else if (name.includes(search)) score += 5000; // contient le terme -> bonus
 
-    // Si le champ est vide, on ne fait rien
-    if (!searchValue) {
-      return;
+    if (rFilter !== "all") {
+      // étend la correspondance aux champs subtype/supertype pour couvrir VMAX/VSTAR etc.
+      const isMatch =
+        name.includes(rFilter) ||
+        stage.includes(rFilter) ||
+        rarity.includes(rFilter) ||
+        subtype.includes(rFilter) ||
+        supertype.includes(rFilter); // correspondance approximative étendue
+      if (isMatch) score += 20000; // grosse priorité si correspond
+
+      const specials = ["vmax", "vstar", "ex", "gx", "v", "mega"];
+      if (
+        rFilter === "basic" &&
+        specials.some(
+          (s) =>
+            name.includes(s) || subtype.includes(s) || supertype.includes(s),
+        )
+      )
+        score -= 15000; // pénalise fortement les versions spéciales si on veut basic
     }
 
-    // Cache le message d'erreur précédent
-    hideError();
+    if (aFilter !== "standard") {
+      const isShiny = rarity.includes("shiny") || name.includes("shiny");
+      const isSecret = rarity.includes("secret") || rarity.includes("rainbow");
+      if (aFilter === "shiny" && isShiny) score += 15000; // bonus shiny
+      if (aFilter === "secret" && isSecret) score += 15000; // bonus secret
+    }
 
+    if (card.image) score += 1000; // bonus si la carte a une image
+    score += parseInt(card.hp) || 0; // ajoute les HP si disponibles
+
+    return score; // renvoie le score calculé
+  }
+
+  // construit la carte affichée en clonant le template HTML
+  function createFinalCard(pokemon, tcg) {
+    if (!ui.cardTemplate) return; // si pas de template, on quitte
+    // mémorise les valeurs actuellement sélectionnées (si présentes)
+    const prevRarity = ui.rarityFilter?.value ?? null;
+    const prevAspect = ui.aspectFilter?.value ?? null;
+
+    ui.cardsContainer.innerHTML = ""; // vide le conteneur avant d'ajouter
+    const clone = ui.cardTemplate.content.cloneNode(true); // clone profond du template
+    const cardEl = clone.querySelector(".card"); // élément principal de la carte
+    const mainImg = clone.querySelector('[data-field="image"]'); // image principale
+    const tcgImg = clone.querySelector('[data-field="carte"]'); // image TCG
+
+    mainImg.crossOrigin = "anonymous"; // autorise lecture des pixels (ColorThief)
+    mainImg.src = `${pokemon.image}?c=${Date.now()}`; // ajoute timestamp pour forcer reload
+    tcgImg.src = tcg && tcg.image ? `${tcg.image}/high.webp` : pokemon.image; // fallback
+
+    clone.querySelector('[data-field="name"]').textContent =
+      tcg?.name || pokemon.name; // nom : priorité au nom TCG si présent
+    clone.querySelector('[data-field="id"]').textContent = `#${pokemon.id}`; // affiche l'id
+    clone.querySelector('[data-field="generation"]').textContent =
+      tcg?.rarity || `Gen ${pokemon.apiGeneration}`; // affiche la rareté ou la gen
+
+    const s = pokemon.stats || {}; // stats Pokebuild ou objet vide
+    const statsMap = {
+      hp: tcg?.hp || s.HP,
+      attack: s.attack,
+      defense: s.defense,
+      "special-attack": s.special_attack,
+      "special-defense": s.special_defense,
+      speed: s.speed,
+    };
+    Object.entries(statsMap).forEach(([k, v]) => {
+      const el = clone.querySelector(`[data-stat="${k}"]`); // trouve l'élément correspondant
+      if (el) el.textContent = v ?? "—"; // affiche la valeur ou '—' si manquante
+    });
+
+    ui.cardsContainer.appendChild(clone); // ajoute la carte au DOM
+
+    // --- RATTACHEMENT DES SELECTS SI ILS ONT ÉTÉ DÉPLACÉS DANS LE TEMPLATE ---
+    // Certains sélecteurs (ex: choix-variantes) peuvent se trouver à l'intérieur
+    // du template cloné. Si c'est le cas, on les récupère ici et on les rattache
+    // à l'objet `ui`, puis on ajoute un écouteur pour relancer la recherche
+    // lorsque l'utilisateur change de version/aspect.
     try {
-      // Recherche le Pokémon via l'API
-      const pokemon = await fetchPokemon(searchValue);
+      // Cherche les selects par id dans la carte (si l'auteur les a laissés avec ces id)
+      const localRarity = ui.cardsContainer.querySelector("#rarity-filter");
+      const localAspect = ui.cardsContainer.querySelector("#aspect-filter");
 
-      // Crée et affiche la carte
-      createPokemonCard(pokemon);
-
-      // Vide le champ de recherche
-      pokemonInput.value = "";
-    } catch (error) {
-      // Affiche le message d'erreur
-      showError(error.message);
-    }
-  }
-
-  /**
-   * Génère la clé de cache pour un nom de Pokémon
-   * @param {string} name - Le nom du Pokémon
-   * @returns {string} La clé de cache
-   */
-  function getCacheKey(name) {
-    // Normalise le nom en minuscules pour éviter les doublons
-    return CACHE_PREFIX + name.toLowerCase();
-  }
-
-  /**
-   * Récupère un Pokémon depuis le cache localStorage
-   * @param {string} name - Le nom du Pokémon
-   * @returns {Object|null} Les données du Pokémon ou null si non trouvé
-   */
-  function getFromCache(name) {
-    try {
-      const key = getCacheKey(name);
-      const cached = localStorage.getItem(key);
-      if (cached) {
-        return JSON.parse(cached);
-      }
-    } catch (error) {
-      // En cas d'erreur (localStorage indisponible, JSON invalide, etc.)
-      console.warn("PokéCSS: Erreur lecture cache:", error.message);
-    }
-    return null;
-  }
-
-  /**
-   * Sauvegarde un Pokémon dans le cache localStorage
-   * @param {string} name - Le nom du Pokémon
-   * @param {Object} data - Les données du Pokémon
-   */
-  function saveToCache(name, data) {
-    try {
-      const key = getCacheKey(name);
-      localStorage.setItem(key, JSON.stringify(data));
-    } catch (error) {
-      // En cas d'erreur (localStorage plein, indisponible, etc.)
-      console.warn("PokéCSS: Erreur écriture cache:", error.message);
-    }
-  }
-
-  /**
-   * Récupère les données d'un Pokémon (depuis le cache ou l'API)
-   * @param {string} name - Le nom du Pokémon à rechercher
-   * @returns {Promise<Object>} Les données du Pokémon
-   */
-  async function fetchPokemon(name) {
-    // Vérifie d'abord le cache localStorage
-    const cached = getFromCache(name);
-    if (cached) {
-      return cached;
-    }
-
-    // Sinon, récupère depuis l'API
-    // Encode le nom pour l'URL (gère les accents, espaces, etc.)
-    const encodedName = encodeURIComponent(name);
-    const url = API_BASE_URL + encodedName;
-
-    try {
-      const response = await fetch(url);
-
-      // Si le Pokémon n'est pas trouvé (404)
-      if (response.status === 404) {
-        throw new Error("Pokémon introuvable. Vérifie l'orthographe.");
-      }
-
-      // Si autre erreur HTTP
-      if (!response.ok) {
-        throw new Error(
-          "Erreur de connexion ou Pokémon introuvable. Réessaie plus tard.",
+      // helper : applique une valeur à un select en ignorant la casse des options
+      const applySelectValueIgnoreCase = (select, val) => {
+        if (!select || val == null) return;
+        const opt = Array.from(select.options).find(
+          (o) => o.value.toLowerCase() === String(val).toLowerCase(),
         );
+        if (opt) select.value = opt.value;
+      };
+
+      // si on trouve un select dans le clone, on lui applique la valeur précédemment choisie
+      if (localRarity) {
+        applySelectValueIgnoreCase(localRarity, prevRarity);
+        ui.rarityFilter = localRarity; // remplace la référence globale par l'élément actuel
+        // attache le listener après avoir appliqué la valeur pour éviter déclenchements involontaires
+        localRarity.onchange = () => {
+          if (currentPokemon) executeSearch(currentPokemon);
+        };
       }
 
-      // Parse la réponse JSON
-      const data = await response.json();
-
-      // Sauvegarde dans le cache pour les prochaines recherches
-      saveToCache(name, data);
-
-      return data;
-    } catch (error) {
-      // Si c'est une erreur réseau (pas de connexion, etc.)
-      if (error.name === "TypeError") {
-        throw new Error("Erreur de connexion. Vérifie ta connexion internet.");
+      if (localAspect) {
+        applySelectValueIgnoreCase(localAspect, prevAspect);
+        ui.aspectFilter = localAspect; // remplace la référence globale
+        localAspect.onchange = () => {
+          if (currentPokemon) executeSearch(currentPokemon);
+        };
       }
-      // Sinon, on propage l'erreur
-      throw error;
+    } catch (e) {
+      // en cas d'erreur, on ignore pour ne pas casser l'affichage
     }
+
+    applyDynamicColors(mainImg, cardEl); // applique des couleurs dynamiques à partir de l'image
   }
 
-  /**
-   * Crée une carte Pokémon et l'ajoute au conteneur
-   * @param {Object} pokemon - Les données du Pokémon
-   */
-  function createPokemonCard(pokemon) {
-    // Clone le template
-    const cardClone = cardTemplate.content.cloneNode(true);
-    const card = cardClone.querySelector(".card");
-
-    // === Remplissage des données ===
-
-    // Image
-    const imageEl = card.querySelector('[data-field="image"]');
-    if (imageEl) {
-      const imageUrl = pokemon.image || "";
-      const pokemonName = pokemon.name || "Pokémon";
-      imageEl.src = imageUrl;
-      imageEl.alt = "Image de " + pokemonName;
-    }
-
-    // Nom
-    const nameEl = card.querySelector('[data-field="name"]');
-    if (nameEl) {
-      nameEl.textContent = pokemon.name || "Inconnu";
-    }
-
-    // ID
-    const idEl = card.querySelector('[data-field="id"]');
-    if (idEl) {
-      idEl.textContent = pokemon.id != null ? pokemon.id : "—";
-    }
-
-    // Génération (peut être apiGeneration ou generation selon l'API)
-    const generationEl = card.querySelector('[data-field="generation"]');
-    if (generationEl) {
-      let gen = pokemon.apiGeneration || pokemon.generation || "—";
-      // Si c'est un nombre, on l'affiche directement
-      if (typeof gen === "number") {
-        generationEl.textContent = gen;
-      } else if (typeof gen === "string") {
-        // Parfois l'API retourne "1ère génération" etc.
-        generationEl.textContent = gen;
-      } else {
-        generationEl.textContent = "—";
+  // utilise ColorThief pour extraire la couleur dominante et l'appliquer
+  function applyDynamicColors(img, card) {
+    if (typeof ColorThief === "undefined") return; // si la lib n'est pas chargée, on sort
+    const ct = new ColorThief(); // nouvelle instance
+    const run = () => {
+      try {
+        const rgb = ct.getColor(img); // récupère [r,g,b]
+        const col = `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+        document
+          .querySelectorAll("h2")
+          .forEach((h2) => h2.style.setProperty("color", col, "important")); // applique aux h2
+        const n = card.querySelector('[data-field="name"]'); // nom dans la carte
+        if (n) n.style.color = col; // applique la couleur
+        img.style.filter = `drop-shadow(0 0 25px rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.5))`; // effet glow
+      } catch (e) {
+        // si erreur, on ignore pour ne pas casser l'UI
       }
-    }
-
-    // Types
-    const typesContainer = card.querySelector('[data-field="types-container"]');
-    if (typesContainer) {
-      // Récupère les types depuis apiTypes ou types
-      const types = extractTypes(pokemon);
-
-      // Vide le conteneur des types (enlève les exemples du template)
-      typesContainer.innerHTML = "";
-
-      // Crée un badge pour chaque type
-      types.forEach(function (typeName) {
-        const badge = document.createElement("span");
-        badge.className = "type-badge";
-        badge.textContent = typeName;
-        typesContainer.appendChild(badge);
-      });
-    }
-
-    // Statistiques
-    const stats = extractStats(pokemon);
-
-    const hpEl = card.querySelector('[data-stat="hp"]');
-    if (hpEl) hpEl.textContent = stats.hp;
-
-    const attackEl = card.querySelector('[data-stat="attack"]');
-    if (attackEl) attackEl.textContent = stats.attack;
-
-    const defenseEl = card.querySelector('[data-stat="defense"]');
-    if (defenseEl) defenseEl.textContent = stats.defense;
-
-    const spAttackEl = card.querySelector('[data-stat="special-attack"]');
-    if (spAttackEl) spAttackEl.textContent = stats.specialAttack;
-
-    const spDefenseEl = card.querySelector('[data-stat="special-defense"]');
-    if (spDefenseEl) spDefenseEl.textContent = stats.specialDefense;
-
-    const speedEl = card.querySelector('[data-stat="speed"]');
-    if (speedEl) speedEl.textContent = stats.speed;
-
-    // Ajoute la carte au conteneur
-    cardsContainer.appendChild(card);
-  }
-
-  /**
-   * Extrait les noms des types depuis les données du Pokémon
-   * @param {Object} pokemon - Les données du Pokémon
-   * @returns {string[]} Un tableau des noms de types
-   */
-  function extractTypes(pokemon) {
-    // Essaie apiTypes d'abord (structure: [{name: "Feu", image: "..."}])
-    if (pokemon.apiTypes && Array.isArray(pokemon.apiTypes)) {
-      return pokemon.apiTypes.map(function (t) {
-        return t.name || "Type";
-      });
-    }
-
-    // Sinon essaie types
-    if (pokemon.types && Array.isArray(pokemon.types)) {
-      return pokemon.types.map(function (t) {
-        // Si c'est un objet avec name
-        if (typeof t === "object" && t.name) {
-          return t.name;
-        }
-        // Si c'est directement une string
-        if (typeof t === "string") {
-          return t;
-        }
-        return "Type";
-      });
-    }
-
-    // Aucun type trouvé
-    return ["—"];
-  }
-
-  /**
-   * Extrait les statistiques depuis les données du Pokémon
-   * @param {Object} pokemon - Les données du Pokémon
-   * @returns {Object} Les statistiques formatées
-   */
-  function extractStats(pokemon) {
-    const defaultStats = {
-      hp: "—",
-      attack: "—",
-      defense: "—",
-      specialAttack: "—",
-      specialDefense: "—",
-      speed: "—",
     };
+    if (img.complete)
+      run(); // si l'image est déjà chargée
+    else img.onload = run; // sinon attend l'événement load
+  }
 
-    // Si pas de stats, retourne les valeurs par défaut
-    if (!pokemon.stats) {
-      return defaultStats;
+  // gère le comportement du header lors du scroll
+  function handleHeaderScroll() {
+    const s = window.scrollY > 50; // true si on a scrollé de plus de 50px
+    document.querySelector("header")?.classList.toggle("header-scrolled", s); // toggle classe header
+    ui.historyContainer?.classList.toggle("is-hidden", s); // cache l'historique si scroll
+  }
+
+  // met à jour l'historique (liste) et les stats (compteurs) dans localStorage
+  function updateHistoryAndStats(p) {
+    let h = JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); // lit l'historique
+    h = [p.name, ...h.filter((n) => n !== p.name)].slice(0, 7); // place en tête et enlève doublons
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(h)); // sauvegarde
+    renderHistory(); // met à jour l'affichage
+
+    let st = JSON.parse(localStorage.getItem(STATS_KEY) || "{}"); // lit les stats
+    if (!st[p.name]) st[p.name] = { count: 0, img: p.image }; // initialise si besoin
+    st[p.name].count++; // incrémente le compteur
+    localStorage.setItem(STATS_KEY, JSON.stringify(st)); // sauvegarde
+    renderTopFive(); // met à jour le top 5
+  }
+
+  // affiche l'historique sous forme de boutons cliquables
+  function renderHistory() {
+    if (!ui.historyContainer) return; // si pas présent, rien à faire
+    ui.historyContainer.innerHTML = ""; // vide le conteneur
+    JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]").forEach((n) => {
+      const b = document.createElement("button"); // crée un bouton par entrée
+      b.className = "history-badge"; // classe CSS
+      b.textContent = n; // texte = nom
+      b.onclick = () => executeSearch(n); // clique relance la recherche
+      ui.historyContainer.appendChild(b); // ajoute au DOM
+    });
+  }
+
+  // affiche les 5 pokémon les plus vus
+  function renderTopFive() {
+    if (!ui.topContainer) return; // si pas présent, on sort
+    ui.topContainer.innerHTML = ""; // vide
+    const st = JSON.parse(localStorage.getItem(STATS_KEY) || "{}"); // lit les stats
+    Object.entries(st)
+      .sort((a, b) => b[1].count - a[1].count) // trie par count décroissant
+      .slice(0, 5) // garde top 5
+      .forEach(([n, d]) => {
+        const i = document.createElement("img"); // crée une image miniature
+        i.src = d.img; // source = image stockée
+        i.className = "top-pkmn-thumb"; // classe CSS
+        i.title = n; // tooltip
+        i.onclick = () => {
+          executeSearch(n); // lance la recherche au clic
+          window.scrollTo({ top: 0, behavior: "smooth" }); // remonte en haut
+        };
+        ui.topContainer.appendChild(i); // ajoute au DOM
+      });
+  }
+
+  // charge des suggestions aléatoires (miniatures cliquables)
+  async function loadRandomSuggestions() {
+    if (!ui.randomContainer) return; // si pas de conteneur, on quitte
+    try {
+      const l = await fetch(
+        `https://pokebuildapi.fr/api/v1/random/team?t=${Date.now()}`,
+      ).then((res) => res.json()); // requête aléatoire
+      ui.randomContainer.innerHTML = ""; // vide
+      l.slice(0, 5).forEach((p) => {
+        const i = document.createElement("img");
+        i.src = p.image; // image miniature
+        i.className = "random-pkmn-thumb";
+        i.onclick = () => {
+          executeSearch(p.name); // recherche pour le pokémon cliqué
+          window.scrollTo({ top: 0, behavior: "smooth" }); // remonte en haut
+        };
+        ui.randomContainer.appendChild(i); // ajoute la miniature
+      });
+    } catch (e) {
+      // ignore les erreurs pour ne pas interrompre l'UI
     }
-
-    const s = pokemon.stats;
-
-    // Mapping des différentes structures possibles de l'API
-    return {
-      hp: s.HP != null ? s.HP : s.hp != null ? s.hp : "—",
-      attack: s.attack != null ? s.attack : s.Attack != null ? s.Attack : "—",
-      defense:
-        s.defense != null ? s.defense : s.Defense != null ? s.Defense : "—",
-      specialAttack:
-        s.special_attack != null
-          ? s.special_attack
-          : s.specialAttack != null
-            ? s.specialAttack
-            : s["special-attack"] != null
-              ? s["special-attack"]
-              : "—",
-      specialDefense:
-        s.special_defense != null
-          ? s.special_defense
-          : s.specialDefense != null
-            ? s.specialDefense
-            : s["special-defense"] != null
-              ? s["special-defense"]
-              : "—",
-      speed: s.speed != null ? s.speed : s.Speed != null ? s.Speed : "—",
-    };
   }
 
-  /**
-   * Affiche un message d'erreur
-   * @param {string} message - Le message à afficher
-   */
-  function showError(message) {
-    errorMessage.textContent = message;
-    errorMessage.removeAttribute("hidden");
+  // active/désactive l'état visuel de chargement (opacité, curseur)
+  function toggleLoading(a) {
+    if (ui.searchForm) {
+      ui.searchForm.style.opacity = a ? "0.5" : "1"; // change opacité
+      ui.searchForm.style.pointerEvents = a ? "none" : "all"; // bloque les interactions si chargement
+    }
+    document.body.style.cursor = a ? "wait" : "default"; // change le curseur
   }
 
-  /**
-   * Cache le message d'erreur
-   */
+  // affiche un message d'erreur dans l'UI
+  function showError(m) {
+    if (ui.errorMessage) {
+      ui.errorMessage.textContent = m; // place le texte
+      ui.errorMessage.hidden = false; // rend visible
+    }
+  }
+  // cache le message d'erreur
   function hideError() {
-    errorMessage.textContent = "";
-    errorMessage.setAttribute("hidden", "");
+    if (ui.errorMessage) ui.errorMessage.hidden = true;
   }
-})();
+})(); // fin de l'IIFE

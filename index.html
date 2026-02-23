@@ -4,34 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PokéFlex - Exercice Flexbox</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Pixelify+Sans:wght@400..700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="../pokemon-cards-css/public/css/cards.css" />
     <link rel="stylesheet" href="style.css" />
+    <script
+      type="module"
+      src="https://cdn.jsdelivr.net/npm/hover-tilt/dist/hover-tilt.js"
+    ></script>
   </head>
   <body>
-    <!--
-    =====================================================
-    ATTENTION ÉTUDIANTS !
-    =====================================================
-    - NE MODIFIE PAS les noms de classes (class="...")
-    - NE MODIFIE PAS les attributs data-* (data-name, etc.)
-    - NE MODIFIE PAS le fichier app.js
-    - Tu peux modifier le texte visible si tu veux, mais c'est risqué.
-
-    TON TRAVAIL = Éditer le fichier style.css
-    =====================================================
-    -->
-
-    <!-- ===== EN-TÊTE ===== -->
     <header class="header header-flex">
+      <img src="images/pngegg.png" alt="Logo de PokéFlex" class="header-logo" />
       <h1 class="header-title">PokéFlex</h1>
     </header>
-
-    <!-- ===== SECTION RECHERCHE ===== -->
     <main class="main main-flex">
       <section class="search-section search-flex">
         <form class="search-form search-form-flex" id="search-form">
-          <label for="pokemon-input" class="search-label">
-            Rechercher un Pokémon
-          </label>
           <div class="search-input-group search-input-flex">
             <input
               type="text"
@@ -41,95 +34,136 @@
               autocomplete="off"
               required
             />
-            <button type="submit" class="search-button">Chercher</button>
           </div>
-          <p class="search-helper">Ex: Gruikui, Pikachu, Salamèche</p>
         </form>
+        <div id="search-history" class="search-history-flex"></div>
 
-        <!-- Message d'erreur (caché par défaut avec l'attribut hidden) -->
-        <div id="error-message" class="error-message" hidden>
-          <!-- Le texte d'erreur sera inséré par JavaScript -->
-        </div>
+        <div id="error-message" class="error-message" hidden></div>
       </section>
 
-      <!-- ===== CONTENEUR DES CARTES ===== -->
       <section class="cards-section">
-        <div class="cards-container cards-flex" id="cards-container">
-          <!-- Les cartes Pokémon seront ajoutées ici par JavaScript -->
-        </div>
+        <div class="cards-container cards-flex" id="cards-container"></div>
       </section>
     </main>
+    <section class="Discover-pokemon">
+      <h2 class="Discover-pokemon-title">Découvrez d'autres Pokémons</h2>
+      <p class="Discover-pokemon-text">Découvrez des Pokémon moins connus !</p>
+      <div id="random-pokemon-container" class="random-grid"></div>
+    </section>
 
-    <!-- ===== TEMPLATE DE CARTE POKÉMON ===== -->
-    <!--
-    Ce template est cloné par JavaScript pour chaque Pokémon.
-    NE MODIFIE PAS les classes ou data-attributes !
-  -->
     <template id="pokemon-card-template">
-      <article class="card card-flex">
-        <!-- Image du Pokémon -->
-        <div class="card-image-container card-image-flex">
-          <img
-            src=""
-            alt="Image de Pokémon"
-            class="card-image"
-            data-field="image"
-          />
-        </div>
+      <article class="card card__shine card-flex">
+        <div class="card-image-description">
+          <div class="card-image-container card-image-flex">
+            <img
+              src=""
+              alt="Image de Pokémon"
+              class="card-image"
+              data-field="image"
+            />
+          </div>
 
-        <!-- Informations principales -->
-        <div class="card-info card-info-flex">
-          <h2 class="card-name" data-field="name">Nom du Pokémon</h2>
-          <p class="card-id">
-            <span class="card-id-label">N°</span>
-            <span class="card-id-value" data-field="id">000</span>
+          <div class="infos">
+            <div class="infos-principales">
+              <div class="card-info card-info-flex">
+                <h2 class="card-name" data-field="name">Nom du Pokémon</h2>
+                <p class="card-id">
+                  <span class="card-id-label"><em>N°</em></span>
+                  <span class="card-id-value" data-field="id"
+                    ><em>000</em></span
+                  >
+                </p>
+                <p class="card-generation">
+                  <span class="card-generation-label"
+                    ><em>Génération:</em></span
+                  >
+                  <span class="card-generation-value" data-field="generation"
+                    ><em>1</em></span
+                  >
+                </p>
+              </div>
+              <div
+                class="card-types card-types-flex"
+                data-field="types-container"
+              ></div>
+            </div>
+
+            <div class="card-stats card-stats-flex">
+              <div class="stat-row stat-row-flex">
+                <span class="stat-label">PV</span
+                ><span class="stat-value" data-stat="hp">0</span>
+              </div>
+              <div class="stat-row stat-row-flex">
+                <span class="stat-label">Attaque</span
+                ><span class="stat-value" data-stat="attack">0</span>
+              </div>
+              <div class="stat-row stat-row-flex">
+                <span class="stat-label">Défense</span
+                ><span class="stat-value" data-stat="defense">0</span>
+              </div>
+              <div class="stat-row stat-row-flex">
+                <span class="stat-label">Attaque Spé.</span
+                ><span class="stat-value" data-stat="special-attack">0</span>
+              </div>
+              <div class="stat-row stat-row-flex">
+                <span class="stat-label">Défense Spé.</span
+                ><span class="stat-value" data-stat="special-defense">0</span>
+              </div>
+              <div class="stat-row stat-row-flex">
+                <span class="stat-label">Vitesse</span
+                ><span class="stat-value" data-stat="speed">0</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="trait2"></div>
+
+        <div class="card-image-carte-container">
+          <h2 class="Pokemon-carte-title">Carte du Pokémon</h2>
+          <p class="Pokemon-carte-text">
+            Découvrez toutes les cartes du Pokémon ! <br />
+            Il est possible que certaines versions des cartes ne soient pas
+            disponibles
           </p>
-          <p class="card-generation">
-            <span class="card-generation-label">Génération:</span>
-            <span class="card-generation-value" data-field="generation">1</span>
-          </p>
+          <div class="choix-variantes">
+            <select class="variantes-cards" id="rarity-filter">
+              <option value="vmax">VMAX</option>
+              <option value="vstar">VSTAR</option>
+              <option value="v">V</option>
+              <option value="ex">EX</option>
+              <option value="gx">GX</option>
+              <option value="basic">Cartes Basiques</option>
+            </select>
+          </div>
+          <!-- ATTENTION: j'ai utilisé le glare-mask-mode="luminance"!
+          Certains navigateurs ne le prennent pas en charge (safari,...)-->
+          <hover-tilt
+            shadow
+            scale-factor="1.2"
+            class="mask-card"
+            glare-mask="url(images/aztec-pattern.webp)"
+            glare-mask-mode="luminance"
+          >
+            <img
+              src=""
+              alt="Carte"
+              data-field="carte"
+              class="card-image-carte"
+            />
+          </hover-tilt>
         </div>
-
-        <!-- Types (badges) -->
-        <div class="card-types card-types-flex" data-field="types-container">
-          <!--
-          Exemple avec 2 badges de type.
-          JavaScript adaptera le nombre selon le Pokémon.
-        -->
-          <span class="type-badge" data-type="type1">Type 1</span>
-          <span class="type-badge" data-type="type2">Type 2</span>
-        </div>
-
-        <!-- Statistiques -->
-        <div class="card-stats card-stats-flex">
-          <div class="stat-row stat-row-flex">
-            <span class="stat-label">PV</span>
-            <span class="stat-value" data-stat="hp">0</span>
-          </div>
-          <div class="stat-row stat-row-flex">
-            <span class="stat-label">Attaque</span>
-            <span class="stat-value" data-stat="attack">0</span>
-          </div>
-          <div class="stat-row stat-row-flex">
-            <span class="stat-label">Défense</span>
-            <span class="stat-value" data-stat="defense">0</span>
-          </div>
-          <div class="stat-row stat-row-flex">
-            <span class="stat-label">Attaque Spé.</span>
-            <span class="stat-value" data-stat="special-attack">0</span>
-          </div>
-          <div class="stat-row stat-row-flex">
-            <span class="stat-label">Défense Spé.</span>
-            <span class="stat-value" data-stat="special-defense">0</span>
-          </div>
-          <div class="stat-row stat-row-flex">
-            <span class="stat-label">Vitesse</span>
-            <span class="stat-value" data-stat="speed">0</span>
-          </div>
-        </div>
+        <div class="trait2"></div>
       </article>
     </template>
 
+    <div class="trait2"></div>
+    <section id="stats-section" class="favoris-section">
+      <h2 class="pokemon-favorits-title">Les plus recherchés</h2>
+      <p class="pokemon-favoris-text">À vous d'augmenter le compteur !</p>
+      <div id="top-pokemon-container" class="top-pokemon-images"></div>
+    </section>
+    <div id="cards-container"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/color-thief/2.3.0/color-thief.umd.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
