@@ -10,7 +10,6 @@ body {
   background-attachment: fixed;
 }
 h1 {
-  margin: 0;
   font-family: "Pixelify Sans", sans-serif;
   color: #ffffff;
   font-weight: 400;
@@ -31,9 +30,6 @@ article {
 /* ==== Header ==== */
 
 header {
-  display: flex;
-  justify-content: center;
-  align-items: center;
   background-color: #9cbdc6;
   position: sticky;
   top: 0;
@@ -50,10 +46,7 @@ header.header-scrolled {
   transform-origin: top;
 }
 .header-logo {
-  align-self: center;
   max-width: 200px;
-  margin-left: 30px;
-  margin-right: 300px;
   will-change: max-width;
   transition: max-width 0.3s ease;
 }
@@ -61,6 +54,20 @@ header.header-scrolled .header-logo,
 header.header-scrolled h1 {
   transform: scaleY(1.66);
   transition: transform 0.3s ease;
+}
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background-color: #9cbdc6;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  height: 120px;
+  transition:
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.3s ease;
+  will-change: transform;
 }
 
 /* ==== Recherche ==== */
@@ -160,24 +167,20 @@ header.header-scrolled h1 {
   display: flex;
   justify-content: center;
   gap: 1rem;
-  margin-left: -400px;
   flex-wrap: wrap;
 }
 .card-image {
   display: inline;
-  margin-left: 300px;
   object-fit: contain;
   overflow: hidden;
-  margin-bottom: -10px;
   filter: drop-shadow(0 4px 8px var(--main-color));
 }
 .infos {
-  align-self: center;
   display: flex;
-  flex-direction: row;
   margin-top: 100px;
   align-items: center;
   justify-content: center;
+  flex-wrap: wrap;
 }
 .infos-principales {
   display: flex;
@@ -343,6 +346,7 @@ select:disabled {
   display: flex;
   gap: 15px;
   justify-content: center;
+  flex-wrap: wrap;
   margin-top: 20px;
 }
 .top-pkmn-item {
