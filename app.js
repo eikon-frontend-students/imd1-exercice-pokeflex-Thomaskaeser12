@@ -4,7 +4,7 @@
   "use strict"; // active le mode strict pour attraper des erreurs simples
 
   // --- CONFIGURATION ---
-  const DEFAULT_POKEMON = "Lokhlass"; // Pokémon affiché par défaut
+  const DEFAULT_POKEMON = "Éthernatos"; // Pokémon affiché par défaut
   const API_POKEBUILD = "https://pokebuildapi.fr/api/v1/pokemon/"; // base API Pokebuild
   const API_TCGDEX = "https://api.tcgdex.net/v2/fr"; // base API TCGDex
   const HISTORY_KEY = "poke_history_v2"; // clé localStorage pour l'historique
@@ -254,6 +254,13 @@
       // si on trouve un select dans le clone, on lui applique la valeur précédemment choisie
       if (localRarity) {
         applySelectValueIgnoreCase(localRarity, prevRarity);
+        // si aucune valeur précédente, privilégie l'option 'basic' comme valeur par défaut
+        if (prevRarity == null) {
+          const basicOpt = Array.from(localRarity.options).find(
+            (o) => o.value.toLowerCase() === "basic",
+          );
+          if (basicOpt) localRarity.value = basicOpt.value;
+        }
         ui.rarityFilter = localRarity; // remplace la référence globale par l'élément actuel
         // attache le listener après avoir appliqué la valeur pour éviter déclenchements involontaires
         localRarity.onchange = () => {
@@ -263,6 +270,13 @@
 
       if (localAspect) {
         applySelectValueIgnoreCase(localAspect, prevAspect);
+        // si aucune valeur précédente, privilégie l'option 'standard' comme valeur par défaut
+        if (prevAspect == null) {
+          const stdOpt = Array.from(localAspect.options).find(
+            (o) => o.value.toLowerCase() === "standard",
+          );
+          if (stdOpt) localAspect.value = stdOpt.value;
+        }
         ui.aspectFilter = localAspect; // remplace la référence globale
         localAspect.onchange = () => {
           if (currentPokemon) executeSearch(currentPokemon);
