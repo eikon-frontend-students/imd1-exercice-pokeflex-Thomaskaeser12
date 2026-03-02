@@ -4,7 +4,7 @@
   "use strict"; // active le mode strict pour attraper des erreurs simples
 
   // --- CONFIGURATION ---
-  const DEFAULT_POKEMON = "Éthernatos"; // Pokémon affiché par défaut
+  const DEFAULT_POKEMON = "Pikachu"; // Pokémon affiché par défaut
   const API_POKEBUILD = "https://pokebuildapi.fr/api/v1/pokemon/"; // base API Pokebuild
   const API_TCGDEX = "https://api.tcgdex.net/v2/fr"; // base API TCGDex
   const HISTORY_KEY = "poke_history_v2"; // clé localStorage pour l'historique
